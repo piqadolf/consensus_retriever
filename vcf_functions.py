@@ -4,7 +4,7 @@ import os
 import random
 from collections import defaultdict as dd
 
-
+# For each chosen chromosome, takes a random position on it
 def select_regions(chr_positions, read_len):
     pos_dict = dd(list)
     for entry in chr_positions:
@@ -13,6 +13,7 @@ def select_regions(chr_positions, read_len):
         pos_dict[chr_name].append(start_pos)
     return(pos_dict)
 
+# Loads vcf index in memory
 def load_index(index_file):
     index = {}
     with open(index_file, 'r') as f:
@@ -25,25 +26,24 @@ def load_index(index_file):
             index[chrom].append((pos, offset))
     return index
 
-def query_vcf(vcf_file, index_file, chrom, start, end):
 
+# With random chromosomes and regions, obtains VCF entries with positions
+# in given regions
+def query_vcf(vcf_file, index_file, chrom, start, end):
     index = load_index(index_file)
     if chrom not in index:
         print('NO')
         return []
     result = []
     with open(vcf_file, 'r') as f:
-        # print('search')
         for pos, offset in index[chrom]:
-            # print(pos)
-            # o = input()
             if start <= pos <= end:
-                # print(pos, offset)
                 f.seek(offset)
                 line = f.readline()
                 result.append(line.strip())
     return result
 
+# Creates vcf index file
 def index_vcf(vcf_file, index_file, db_name):
     index = {}
     db = sqlite3.connect(db_name)
@@ -82,14 +82,12 @@ def index_vcf(vcf_file, index_file, db_name):
     return(samples)
 
 
+# Creates sqlite table for genome
 def parse_fasta(fasta_file, db_name):
     now = time.time()
 
     db = sqlite3.connect(db_name)
     cursor = db.cursor()
-
-    # cursor.execute("""DROP TABLE IF EXISTS genome""")
-
     cursor.execute("""CREATE TABLE IF NOT EXISTS genome (
             id INTEGER PRIMARY KEY,
             chr TEXT NOT NULL,
@@ -97,11 +95,9 @@ def parse_fasta(fasta_file, db_name):
             len INTEGER NOT NULL
             
     )""")
-    fasta_file = fasta_file
-    # fasta_file = 'toy_felis.fa'
+
     with open(fasta_file, 'r') as fa:
         lines = iter(fa)
-        # print(next(lines))
         chr = next(lines)[1:].strip().split()[0]
         seq = []
         entries = []
@@ -119,10 +115,8 @@ def parse_fasta(fasta_file, db_name):
                 seq = []
             else:
                 seq.append(line.strip())
-
         seq = ''.join(seq)
         entries.append((chr, seq, len(seq)))
-
     fa.close()
 
     cursor.executemany("INSERT INTO genome (chr, seq, len) VALUES (?,?,?)", entries)
@@ -131,7 +125,11 @@ def parse_fasta(fasta_file, db_name):
     print(time.time()-now)
 
 
-def process_vcf(num_entries, sample_id, var_id, samples, lines, af_threshold, db_name):
+# Fills out tables for variants and samples
+def process_vcf(samples, lines, af_threshold, db_name):
+    num_entries = 0
+    sample_id = 0
+    var_id = 0
     db = sqlite3.connect(db_name)
     cursor = db.cursor()
     entries = []
@@ -166,11 +164,10 @@ def process_vcf(num_entries, sample_id, var_id, samples, lines, af_threshold, db
         format =  values[8].split(':')
         gt_id = format.index('GT')
         for i, sample in enumerate(samples):
-            # sample_id+=1
             sample_gt = values[9+i].split(':')[gt_id]
             sample_entries.append((sample, sample_gt))
 
-        if num_entries%50000 == 0:
+        if num_entries%50000 == 0: # Insertions are split into batches to save memory
             print('variants processed', num_entries)
             cursor.executemany("INSERT INTO variants (var_id, chr, pos, ref, alt, alt_order, gt_idx, af) VALUES (?,?,?,?,?,?,?,?)", entries)
             cursor.executemany("INSERT INTO samples  (sample, gt) VALUES (?,?)", sample_entries)
