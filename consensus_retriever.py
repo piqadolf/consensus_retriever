@@ -191,7 +191,6 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold):
     db.close()
 
 if __name__ == '__main__':
-    print('main')
     parser = ArgumentParser()
 
     parser.add_argument('-n','--num_cons', help='Amount of consensus sequences to retrieve', type=int, required=True)
