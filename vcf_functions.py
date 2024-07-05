@@ -11,6 +11,8 @@ def select_regions(chr_positions, read_len):
         chr_name = entry[1]
         start_pos = random.randint(1, entry[2]-read_len)
         pos_dict[chr_name].append(start_pos)
+    for chr, positions in pos_dict.items():
+        pos_dict[chr] = sorted(positions)
     return(pos_dict)
 
 # Loads vcf index in memory
@@ -31,9 +33,6 @@ def load_index(index_file):
 # in given regions
 def query_vcf(vcf_file, index_file, chrom, start, end):
     index = load_index(index_file)
-    if chrom not in index:
-        print('NO')
-        return []
     result = []
     with open(vcf_file, 'r') as f:
         for pos, offset in index[chrom]:
@@ -108,7 +107,7 @@ def parse_fasta(fasta_file, db_name):
                 seq = ''.join(seq)
                 entries.append((chr, seq, len(seq)))
                 if num_entries%500==0:
-                    print(num_entries)
+                    print(num_entries, 'chromosomes')
                     cursor.executemany("INSERT INTO genome (chr, seq, len) VALUES (?,?,?)", entries)
                     entries = []
                 chr = line[1:].strip().split()[0]
@@ -126,7 +125,7 @@ def parse_fasta(fasta_file, db_name):
 
 
 # Fills out tables for variants and samples
-def process_vcf(samples, lines, af_threshold, db_name):
+def process_variants(samples, lines, af_threshold, db_name):
     num_entries = 0
     sample_id = 0
     var_id = 0
@@ -180,4 +179,3 @@ def process_vcf(samples, lines, af_threshold, db_name):
     cursor.executemany("INSERT INTO variants_samples (variant_id, sample_id) VALUES (?,?)", variant_sample_entries)
     db.commit()
     db.close()
-    return(num_entries, sample_id, var_id)

@@ -9,7 +9,6 @@ from argparse import ArgumentParser
 
 def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold):
     global_now = time.time()
-    print(num_cons)
     db_name = f'{fasta_file}.db'
     db = sqlite3.connect(db_name)
 
@@ -39,7 +38,7 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold):
         vf.parse_fasta(fasta_file, db_name)
     else:
         print('Genome table exists')
-    print(time.time()-global_now)
+
     print('Retrieving variants')
 
     # Choosing random chromosomes
@@ -52,11 +51,12 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold):
 
     # Choosing random substrings from chromosomes
     pos_dict = vf.select_regions(chr_positions, read_len)
-    all_results = []
+    all_vcf_entries = []
     for chr, positions in pos_dict.items():
         for position in positions:
-            results = vf.query_vcf(vcf_file, index_file, chr, position, position+read_len)
-            all_results.extend(results)
+            vcf_entries = vf.query_vcf(vcf_file, index_file, chr, position, position+read_len)
+            all_vcf_entries.extend(vcf_entries)
+    print(time.time()-global_now)
 
     # Creating database for variants
     print('Inserting variants in db')
@@ -91,8 +91,9 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold):
             )""")
 
     # Inserting entries into databases
-    vf.process_vcf(samples, all_results, af_threshold, db_name)
+    vf.process_variants(samples, all_vcf_entries, af_threshold, db_name)
     print(time.time()-global_now)
+    print('Generating consensuses')
     out_list = []
     for chr, positions in pos_dict.items():
 
