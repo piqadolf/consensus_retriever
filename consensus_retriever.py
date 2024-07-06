@@ -7,7 +7,7 @@ import time
 from argparse import ArgumentParser
 
 
-def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold):
+def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold, pos_dict):
     global_now = time.time()
     db_name = f'{fasta_file}.db'
     db = sqlite3.connect(db_name)
@@ -35,24 +35,30 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold):
             gen_tab = True
     if not gen_tab:
         print('Parsing genome fasta')
-        vf.parse_fasta(fasta_file, db_name)
+        genomes_list = vf.parse_fasta(fasta_file, db_name)
     else:
         print('Genome table exists')
 
     print('Retrieving variants')
 
-    # Choosing random chromosomes
-    cursor.execute(f"""SELECT g.id, g.chr, g.len FROM (
-                SELECT id, chr FROM vcf_genomes ORDER BY RANDOM() LIMIT {num_cons}
-                ) AS v 
-                JOIN genome g ON v.chr = g.chr """)
+    if pos_dict == False: # if chromosomes and positions were not provided
+        # Choosing random chromosomes
+        cursor.execute(f"""SELECT g.id, g.chr, g.len FROM (
+                    SELECT id, chr FROM vcf_genomes ORDER BY RANDOM() LIMIT {num_cons}
+                    ) AS v 
+                    JOIN genome g ON v.chr = g.chr """)
 
-    chr_positions = cursor.fetchall()
+        chr_positions = cursor.fetchall()
 
-    # Choosing random substrings from chromosomes
-    pos_dict = vf.select_regions(chr_positions, read_len)
+        # Choosing random substrings from chromosomes
+        pos_dict = vf.select_regions(chr_positions, read_len)
+
+    
+
     all_vcf_entries = []
     for chr, positions in pos_dict.items():
+        positions = list(set(positions))
+        pos_dict[chr] = positions
         for position in positions:
             vcf_entries = vf.query_vcf(vcf_file, index_file, chr, position, position+read_len)
             all_vcf_entries.extend(vcf_entries)
@@ -101,7 +107,13 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold):
             SELECT id, seq FROM genome WHERE chr = '{chr}'
             """)
         sequence = cursor.fetchone()[1]
-        substrings = [sequence[position-1:position+read_len-1] for position in positions]
+        len_seq = len(sequence)
+        substrings = []
+        for ip, position in enumerate(positions):
+            if position+read_len-1 > len_seq:
+                position = len_seq-read_len+1
+                positions[ip] = position
+        substrings = [sequence[position-1:position+read_len-1] for position in positions if position+read_len-1 ]
 
         now = time.time()
         for num_string, position in enumerate(positions):
@@ -201,7 +213,26 @@ if __name__ == '__main__':
     parser.add_argument('-o','--out', help='Name of output fasta', type=str, required=True)
     parser.add_argument('-g','--genome', help='Input genome fasta', type=str, required=True)
     parser.add_argument('--vcf', help='Input VCF file', type=str, required=True)
+    parser.add_argument('--chr_pos', help="Provide desired chromosomes and positions as 'chr1:123,456;chr2:789,890' (without quotes) ", type=str, required=False, default=False)
 
     args = parser.parse_args()
 
-    main(args.genome, args.vcf, args.out, args.num_cons, args.length, args.frequency)
+    chr_pos = args.chr_pos
+    if chr_pos:
+        try:
+            pos_dict = {}
+            per_chr = chr_pos.split(';')
+            for pos_list in per_chr:
+                chr_name = pos_list.split(':')[0]
+                positions = pos_list.split(':')[1].split(',')
+                positions = list(map(int, positions))
+                pos_dict[chr_name] = positions
+        except:
+            print('Wrong format of --chr_pos')
+            raise Exception
+    else:
+        pos_dict = False
+
+
+
+    main(args.genome, args.vcf, args.out, args.num_cons, args.length, args.frequency, pos_dict)
