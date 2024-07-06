@@ -35,7 +35,7 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold, pos_
             gen_tab = True
     if not gen_tab:
         print('Parsing genome fasta')
-        genomes_list = vf.parse_fasta(fasta_file, db_name)
+        chr_list = vf.parse_fasta(fasta_file, db_name)
     else:
         print('Genome table exists')
 
@@ -57,6 +57,8 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold, pos_
 
     all_vcf_entries = []
     for chr, positions in pos_dict.items():
+        if chr not in chr_list:
+            continue
         positions = list(set(positions))
         pos_dict[chr] = positions
         for position in positions:

@@ -96,8 +96,10 @@ def parse_fasta(fasta_file, db_name):
     )""")
 
     with open(fasta_file, 'r') as fa:
+        chr_list = []
         lines = iter(fa)
         chr = next(lines)[1:].strip().split()[0]
+        chr_list.append(chr)
         seq = []
         entries = []
         num_entries=0
@@ -111,6 +113,7 @@ def parse_fasta(fasta_file, db_name):
                     cursor.executemany("INSERT INTO genome (chr, seq, len) VALUES (?,?,?)", entries)
                     entries = []
                 chr = line[1:].strip().split()[0]
+                chr_list.append(chr)
                 seq = []
             else:
                 seq.append(line.strip())
@@ -122,6 +125,7 @@ def parse_fasta(fasta_file, db_name):
     db.commit()
     db.close()
     print(time.time()-now)
+    return chr_list
 
 
 # Fills out tables for variants and samples
