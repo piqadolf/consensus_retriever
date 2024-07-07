@@ -9,18 +9,14 @@ The program has two modes. The first one incorporates variants in random places 
 The second mode allows user to specify which chromosomes and positions to investigate.
 
 Options:
-  -h, --help            show this help message and exit
-  -n NUM_CONS, --num_cons NUM_CONS
-                        Amount of consensus sequences to retrieve
-  -l LENGTH, --length LENGTH
-                        Length of consensus
-  -f [0-100], --frequency [0-100]
-                        Lower threshold for allele frequency (percents)
-  -o OUT, --out OUT     Name of output fasta
-  -g GENOME, --genome GENOME
-                        Input genome fasta
-  --vcf VCF             Input VCF file
-  --chr_pos CHR_POS     Provide desired chromosomes and positions as 'chr1:123,456;chr2:789,890' (without quotes)
+-h, --help		show this help message and exit
+-n NUM_CONS, --num_cons NUM_CONS		Amount of consensus sequences to retrieve
+-l LENGTH, --lengthLENGTH	Length of consensus
+-f [0-100], --frequency [0-100]		Lower threshold for allele frequency (percents)
+-o OUT, --out OUT		Name of output fasta
+-g GENOME, --genome GENOME		Input genome fasta
+--vcf VCF		Input VCF file
+--chr_pos CHR_POS		Provide desired chromosomes and positions as 'chr1:123,456;chr2:789,890' (without quotes)
 
 ### Examples:
 1) Random mode.
