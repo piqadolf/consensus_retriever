@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 
 
 def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold, pos_dict):
-    global_now = time.time()
+    global_start = time.time()
     db_name = f'{fasta_file}.db'
     db = sqlite3.connect(db_name)
 
@@ -24,7 +24,9 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold, pos_
     if os.path.isfile(index_file):
         os.remove(index_file)
     samples = vf.index_vcf(vcf_file, index_file, db_name) # saving samples from vcf
-    print('VCF index finished', time.time()-global_now)
+    print('VCF index finished')
+    vf.time_passed(global_start)
+    print('')
 
     # Parsing genome fasta
     gen_tab = False
@@ -38,7 +40,12 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold, pos_
         chr_list = vf.parse_fasta(fasta_file, db_name)
     else:
         print('Genome table exists')
-
+        chr_list = []
+        cursor.execute('SELECT DISTINCT chr FROM genome')
+        for chromosome in cursor.fetchall():
+            chr_list.append(chromosome[0])
+    vf.time_passed(global_start)
+    print('')
     print('Retrieving variants')
 
     if pos_dict == False: # if chromosomes and positions were not provided
@@ -56,15 +63,23 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold, pos_
     
 
     all_vcf_entries = []
+    chr_count = 0
+    chr_amount = len(pos_dict)
+    print(f'Processing {chr_amount} chromosomes ')
     for chr, positions in pos_dict.items():
         if chr not in chr_list:
             continue
         positions = list(set(positions))
         pos_dict[chr] = positions
+
         for position in positions:
             vcf_entries = vf.query_vcf(vcf_file, index_file, chr, position, position+read_len)
             all_vcf_entries.extend(vcf_entries)
-    print(time.time()-global_now)
+        chr_count+=1
+        vf.progress_bar(chr_count, chr_amount)
+    print('')
+    vf.time_passed(global_start)
+    print('\n', end='')
 
     # Creating database for variants
     print('Inserting variants in db')
@@ -100,9 +115,12 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold, pos_
 
     # Inserting entries into databases
     vf.process_variants(samples, all_vcf_entries, af_threshold, db_name)
-    print(time.time()-global_now)
-    print('Generating consensuses')
+    vf.time_passed(global_start)
+
+    print('\n', end='')
+    print(f'Generating consensuses in {out_fasta}')
     out_list = []
+    chr_count = 0
     for chr, positions in pos_dict.items():
 
         cursor.execute(f"""
@@ -117,7 +135,6 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold, pos_
                 positions[ip] = position
         substrings = [sequence[position-1:position+read_len-1] for position in positions if position+read_len-1 ]
 
-        now = time.time()
         for num_string, position in enumerate(positions):
 
             cursor.execute(f"""SELECT v.id, v.var_id, v.pos, v.alt_order, s.id, s.sample, s.gt  FROM 
@@ -196,11 +213,14 @@ def main(fasta_file, vcf_file, out_fasta, num_cons, read_len, af_threshold, pos_
                     new_seq = ''.join(reads_dict[f'read{allele+1}'])
                     out_list.append(header)
                     out_list.append(new_seq)
-
+        chr_count+=1
+        vf.progress_bar(chr_count, chr_amount)
     fasta = open(f'{out_fasta}', 'w')
     fasta.write('\n'.join(out_list))
     fasta.close()
-    print('Total time', time.time()-global_now)
+    print('')
+    print('Total ', end='')
+    vf.time_passed(global_start)
     
     db.commit()
     db.close()

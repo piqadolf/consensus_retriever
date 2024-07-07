@@ -1,5 +1,6 @@
 import sqlite3
 import time
+import sys
 import os
 import random
 from collections import defaultdict as dd
@@ -83,8 +84,6 @@ def index_vcf(vcf_file, index_file, db_name):
 
 # Creates sqlite table for genome
 def parse_fasta(fasta_file, db_name):
-    now = time.time()
-
     db = sqlite3.connect(db_name)
     cursor = db.cursor()
     cursor.execute("""CREATE TABLE IF NOT EXISTS genome (
@@ -109,7 +108,7 @@ def parse_fasta(fasta_file, db_name):
                 seq = ''.join(seq)
                 entries.append((chr, seq, len(seq)))
                 if num_entries%500==0:
-                    print(num_entries, 'chromosomes')
+                    print(f'Found {num_entries} chromosomes/contigs', end='\r')
                     cursor.executemany("INSERT INTO genome (chr, seq, len) VALUES (?,?,?)", entries)
                     entries = []
                 chr = line[1:].strip().split()[0]
@@ -119,12 +118,12 @@ def parse_fasta(fasta_file, db_name):
                 seq.append(line.strip())
         seq = ''.join(seq)
         entries.append((chr, seq, len(seq)))
+    print(f'Found {num_entries} chromosomes/contigs')
     fa.close()
 
     cursor.executemany("INSERT INTO genome (chr, seq, len) VALUES (?,?,?)", entries)
     db.commit()
     db.close()
-    print(time.time()-now)
     return chr_list
 
 
@@ -183,3 +182,12 @@ def process_variants(samples, lines, af_threshold, db_name):
     cursor.executemany("INSERT INTO variants_samples (variant_id, sample_id) VALUES (?,?)", variant_sample_entries)
     db.commit()
     db.close()
+
+
+def progress_bar(progress, total):
+    percent = 100 * (progress / float(total))
+    bar = '█' * int(percent) + '-' * (100 - int(percent))
+    print(bar, end='\r')
+
+def time_passed(global_start):
+    print(str(round((time.time() - global_start), 2))+' seconds passed')
