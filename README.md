@@ -39,4 +39,5 @@ CCCTTTGATGTACCTGCAGTTCTGGCACAAATCCCAGCTGCAGACAGTCAGCTGGACTTCTAACCCTGCCCACT
 \>chr=AANG04003642.1;pos=81454-81654;samples=fca.s2;allele=2
 CCCTTTGATGTACCTGCAGTTCTGGCACAAATCCCAGCTGCAGACAGTCAGCTGGACTTCTAACCCTGCCCACT
 
+### Hint
 >**Once you run the program, you have an sqlite database. Unless you delete it, all the subsequent runs will skip the genome parsing step and save you a substantial amount of time.**
