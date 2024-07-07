@@ -101,7 +101,7 @@ def parse_fasta(fasta_file, db_name):
         chr_list.append(chr)
         seq = []
         entries = []
-        num_entries=0
+        num_entries=1
         for line in lines:
             if line[0] == '>':
                 num_entries+=1
