@@ -5,6 +5,11 @@ import os
 import random
 from collections import defaultdict as dd
 
+def progress_bar(progress, total):
+    percent = 100 * (progress / float(total))
+    bar = '█' * int(percent) + '-' * (100 - int(percent))
+    print(bar, end='\r')
+
 # For each chosen chromosome, takes a random position on it
 def select_regions(chr_positions, read_len):
     pos_dict = dd(list)
@@ -84,6 +89,8 @@ def index_vcf(vcf_file, index_file, db_name):
 
 # Creates sqlite table for genome
 def parse_fasta(fasta_file, db_name):
+    fasta_len = int(os.popen(f'wc -l {fasta_file}').read().split(' ')[0])
+    fasta_len_percent = fasta_len//100
     db = sqlite3.connect(db_name)
     cursor = db.cursor()
     cursor.execute("""CREATE TABLE IF NOT EXISTS genome (
@@ -102,13 +109,15 @@ def parse_fasta(fasta_file, db_name):
         seq = []
         entries = []
         num_entries=1
-        for line in lines:
+        for i, line in enumerate(lines):
+            if i%fasta_len_percent == 0:
+                progress_bar(i, fasta_len)
             if line[0] == '>':
                 num_entries+=1
                 seq = ''.join(seq)
                 entries.append((chr, seq, len(seq)))
                 if num_entries%500==0:
-                    print(f'Found {num_entries} chromosomes/contigs', end='\r')
+                    # print(f'Found {num_entries} chromosomes/contigs', end='\r')
                     cursor.executemany("INSERT INTO genome (chr, seq, len) VALUES (?,?,?)", entries)
                     entries = []
                 chr = line[1:].strip().split()[0]
@@ -118,6 +127,8 @@ def parse_fasta(fasta_file, db_name):
                 seq.append(line.strip())
         seq = ''.join(seq)
         entries.append((chr, seq, len(seq)))
+        progress_bar(fasta_len, fasta_len)
+        print('')
     print(f'Found {num_entries} chromosomes/contigs')
     fa.close()
 
@@ -183,11 +194,6 @@ def process_variants(samples, lines, af_threshold, db_name):
     db.commit()
     db.close()
 
-
-def progress_bar(progress, total):
-    percent = 100 * (progress / float(total))
-    bar = '█' * int(percent) + '-' * (100 - int(percent))
-    print(bar, end='\r')
 
 def time_passed(global_start):
     print(str(round((time.time() - global_start), 2))+' seconds passed')
